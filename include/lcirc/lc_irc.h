@@ -277,10 +277,12 @@ struct BufQueue {
       16 , 233, 235, 237, 239, 241, 244, 247, 250, 254, 231 };
     static const int ansi_cnt =
       sizeof( ansi_tab ) / sizeof( ansi_tab[ 0 ] );
+    static const char * ansi_normal = ANSI_NORMAL;
 
     uint32_t word_len,
              spc_len;
-    bool     in_ctcp = false;
+    bool     in_ctcp  = false,
+             in_color = false;
 
     while ( len > 0 && text[ len - 1 ] == ' ' )
       len -= 1;
@@ -299,9 +301,8 @@ struct BufQueue {
         len--;
         switch ( code ) {
           case CTCP_DELIM:       /* 0x01 */
-            in_ctcp  = !in_ctcp;
             color_sz = ( in_ctcp ? ANSI_YELLOW_SIZE : ANSI_NORMAL_SIZE );
-            color    = ( in_ctcp ? ANSI_YELLOW      : ANSI_NORMAL );
+            color    = ( in_ctcp ? ANSI_YELLOW      : ansi_normal );
             break;
           case IRC_BOLD:         /* 0x02 */
             color_sz = ANSI_BOLD_SIZE;
@@ -346,7 +347,7 @@ struct BufQueue {
             else {
           case IRC_RESET:
               color_sz = ANSI_NORMAL_SIZE;
-              color    = ANSI_NORMAL;
+              color    = ansi_normal;
             }
             break;
           case IRC_REVERSE:
@@ -392,6 +393,7 @@ struct BufQueue {
             break;
         }
         if ( color_sz != 0 ) {
+          in_color = ( color != ansi_normal );
           this->append_data( color, color_sz );
         }
         continue;
@@ -428,8 +430,8 @@ struct BufQueue {
       }
       col.off = col.end; /* too long for this line */
     }
-    if ( in_ctcp )
-      this->append_data( ANSI_NORMAL, ANSI_NORMAL_SIZE );
+    if ( in_color )
+      this->append_data( ansi_normal, ANSI_NORMAL_SIZE );
   }
 };
 
@@ -1099,6 +1101,11 @@ uint32_t chan_fmt_color( const char *chan,  uint32_t chan_len,  char *buf ) {
                                 255 - r, 255 - g, 255 - b );
 }
 
+enum {
+  SHOW_CHANNELS   = 1,
+  PRINT_TIMESTAMP = 2
+};
+
 struct MsgPrint {
   IRC_State & state;
   BufQueue  & fmt_buf;
@@ -1106,12 +1113,16 @@ struct MsgPrint {
   Column      left,
               right;
   uint32_t    nick_pad;
-  bool        show_channels;
+  bool        print_timestamp,
+              show_channels;
 
-  MsgPrint( IRC_State &s, BufQueue &f, bool &p, uint32_t c, bool sc = false ) :
+  MsgPrint( IRC_State &s, BufQueue &f, bool &p, uint32_t c,
+            int what = PRINT_TIMESTAMP ) :
       state( s ), fmt_buf( f ), update_prompt( p ),
-      left( 0, 8 ), right( 8, c - 1 ), nick_pad( c / 4 ), show_channels( sc ) {
-    if ( c / 4 < 8 ) {
+      left( 0, 16 ), right( 16, c - 1 ), nick_pad( c / 4 ),
+      print_timestamp( what & PRINT_TIMESTAMP ),
+      show_channels( what & SHOW_CHANNELS ) {
+    if ( c / 4 < 16 ) {
       this->left.end = c / 4;
       this->right.init( c / 4, c - 1 );
     }

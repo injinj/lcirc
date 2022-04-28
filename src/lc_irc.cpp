@@ -455,7 +455,8 @@ Console::show_channels( char which ) noexcept
     uint32_t linelen = (uint32_t) ( &eol[ 1 ] - log );
 
     Message  msg( log, linelen );
-    MsgPrint printer( this->state, out_buf, this->update_prompt, cols, true );
+    MsgPrint printer( this->state, out_buf, this->update_prompt, cols,
+                      SHOW_CHANNELS );
     if ( msg.parse() ) {
       printer.print_msg( msg );
       if ( which == 1 ) {
@@ -601,13 +602,22 @@ void
 MsgPrint::print_channel( IRC_String &chan ) noexcept
 {
   char     buf[ 128 ];
-  uint32_t len = 0;
+  uint32_t len = 0, pad = 2;
+
+  if ( this->print_timestamp ) {
+    time_t t = time( NULL );
+    struct tm tmbuf, * lt = localtime_r( &t, &tmbuf );
+    len = ::snprintf( buf, sizeof( buf ),
+                      ANSI_BLUE "%02d%02d%02d" ANSI_NORMAL " ",
+                      lt->tm_hour, lt->tm_min, lt->tm_sec );
+    pad += 2 + 2 + 2 + 1;
+  }
   buf[ len++ ] = '[';
-  len += chan_fmt_color( chan.str, chan.len, &buf[ 1 ] );
+  len += chan_fmt_color( chan.str, chan.len, &buf[ len ] );
   const char fmt2[] = "%.*s" ANSI_NORMAL "]";
   ::memcpy( &buf[ len ], fmt2, sizeof( fmt2 ) );
   len += sizeof( fmt2 ) - 1;
-  this->fmt_buf.print_col( this->left, buf, 2, chan.len, chan.str );
+  this->fmt_buf.print_col( this->left, buf, pad, chan.len, chan.str );
   this->right.off = this->left.off;
 }
 
@@ -767,6 +777,7 @@ MsgPrint::print_msg( Message &msg ) noexcept
     param_off = 1;
   }
   else if ( msg_type == M_RPL_LIST ) {
+    this->print_timestamp = false;
     this->print_channel( msg.param_str( 1, id ) );
     this->right.off = this->left.off;
     param_off = 2;
@@ -987,7 +998,7 @@ replay_log( IRC_State &state,  const char *fn,  int fd,
     Message msg( &map[ off ], (uint32_t) linelen );
     off += linelen;
 
-    MsgPrint printer( state, fmt_buf, update_prompt, cols );
+    MsgPrint printer( state, fmt_buf, update_prompt, cols, 0 );
     if ( msg.parse() )
       printer.print_msg( msg );
     else if ( msg.msg_len > 5 && ::memcmp( msg.msg, "PING ", 5 ) == 0 )
