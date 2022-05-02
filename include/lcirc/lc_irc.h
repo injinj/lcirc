@@ -174,7 +174,7 @@ struct BufQueue {
   char *append_incr( uint32_t used,  uint32_t &avail ) {
     this->len += used;
     avail = this->size - this->len;
-    if ( avail < BUF_INCR / 2 ) { /* always have at least 512b */
+    if ( avail < BUF_INCR / 2 ) { /* always have at least 64k */
       this->size += BUF_INCR;
       avail      += BUF_INCR;
       this->buf   = (char *) ::realloc( this->buf, this->size );
@@ -454,7 +454,14 @@ struct IRC_String {
       this->set( s, ::strlen( s ) );
     return *this;
   }
-
+  bool is_valid( const char *start, const char *end ) const {
+    return start >= this->str && end <= &this->str[ this->len ];
+  }
+  void check_valid( const char *start, const char *end ) const {
+    if ( ! this->is_valid( start, end ) ) {
+      fprintf( stderr, "invalid string\n" );
+    }
+  }
   void set( const char *s,  uint32_t z ) {
     if ( s != NULL ) {
       this->str = (char *) ::realloc( this->str, z + 1 );
@@ -534,8 +541,9 @@ struct IRC_Table {
 
   void update( const char *n,  uint32_t nlen ) {
     uint32_t count = 0, off, len, start, idx;
+    bool is_adjusted;
 
-    this->reclaim_space();
+    is_adjusted = this->reclaim_space();
     start = this->db.append( n, nlen );
     off = start;
     len = 0;
@@ -548,11 +556,23 @@ struct IRC_Table {
     idx = this->sz;
     this->sz += count;
     this->tab = (Tab *) ::realloc( this->tab, sizeof( Tab ) * this->sz );
-    off = start;
-    len = 0;
-    while ( this->db.next_word( off, len ) ) {
-      this->tab[ idx ].off = off;
-      this->tab[ idx++ ].len = len;
+    if ( is_adjusted ) {
+      idx = 0;
+      off = 0;
+      len = 0;
+      while ( this->db.next_word( off, len ) ) {
+        this->tab[ idx ].off = off;
+        this->tab[ idx++ ].len = len;
+      }
+      this->sz = idx;
+    }
+    else {
+      off = start;
+      len = 0;
+      while ( this->db.next_word( off, len ) ) {
+        this->tab[ idx ].off = off;
+        this->tab[ idx++ ].len = len;
+      }
     }
     if ( idx == 1 ) /* no need to sort 1 elem */
       return;
@@ -677,7 +697,7 @@ struct IRC_Table {
                ( this->sz - ( k + 1 ) ) * sizeof( Tab ) );
     this->sz -= 1;
   }
-  void reclaim_space( void ) {
+  bool reclaim_space( void ) {
     if ( this->spc * 2 > this->db.len ) {
       uint32_t i = 0, j = 0,
                len = this->db.len;
@@ -698,7 +718,9 @@ struct IRC_Table {
       this->db.len = i;
       text[ i ] = '\0';
       this->spc = 0;
+      return true;
     }
+    return false;
   }
   void clear( void ) {
     this->db.clear();

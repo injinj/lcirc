@@ -745,6 +745,11 @@ MsgPrint::print_msg( Message &msg ) noexcept
       }
       break;
 
+    case M_MODE:
+      if ( this->state.quiet )
+        show_msg = false;
+      break;
+
     case M_NICK:
       if ( this->state.nick.equal( msg.nick, msg.nick_len ) ) {
         this->state.nick.set( msg.text, msg.text_len );
