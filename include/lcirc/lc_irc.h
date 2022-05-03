@@ -301,8 +301,9 @@ struct BufQueue {
         len--;
         switch ( code ) {
           case CTCP_DELIM:       /* 0x01 */
-            color_sz = ( in_ctcp ? ANSI_YELLOW_SIZE : ANSI_NORMAL_SIZE );
-            color    = ( in_ctcp ? ANSI_YELLOW      : ansi_normal );
+            color_sz = ( ! in_ctcp ? ANSI_YELLOW_SIZE : ANSI_NORMAL_SIZE );
+            color    = ( ! in_ctcp ? ANSI_YELLOW      : ansi_normal );
+            in_ctcp  = ! in_ctcp;
             break;
           case IRC_BOLD:         /* 0x02 */
             color_sz = ANSI_BOLD_SIZE;
