@@ -29,7 +29,7 @@ set_property (TARGET linecook PROPERTY IMPORTED_LOCATION_DEBUG ../linecook/build
 set_property (TARGET linecook PROPERTY IMPORTED_LOCATION_RELEASE ../linecook/build/Release/linecook.lib)
 endif ()
 else ()
-add_compile_options (-Wall -Wextra -Werror -ggdb -fno-omit-frame-pointer)
+add_compile_options (-Wall -Wextra -Werror -ggdb -O3 -fno-omit-frame-pointer)
 if (TARGET pcre2-32-static)
 include_directories (${CMAKE_BINARY_DIR}/pcre2)
 endif ()

@@ -87,6 +87,8 @@ $(lc_lib) $(lc_dll):
 clean_lc:
 	$(MAKE) -C linecook clean
 clean_subs += clean_lc
+update_submod:
+	git update-index --cacheinfo 160000 `cd ./linecook && git rev-parse HEAD` linecook
 endif
 
 # copr/fedora build (with version env vars)
